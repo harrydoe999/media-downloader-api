@@ -52,14 +52,20 @@ def download():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-    for f in os.listdir(DOWNLOAD_FOLDER):
-        if f.startswith(file_id):
-            return send_file(
-                os.path.join(DOWNLOAD_FOLDER, f),
-                as_attachment=True
-            )
+    files_found = os.listdir(DOWNLOAD_FOLDER)
+for f in files_found:
+    if f.startswith(file_id):
+        return send_file(
+            os.path.join(DOWNLOAD_FOLDER, f),
+            as_attachment=True
+        )
 
-    return jsonify({"error": "File not found after download"}), 500
+return jsonify({
+    "error": "File not found after download",
+    "file_id": file_id,
+    "files_in_folder": files_found
+}), 500
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
