@@ -24,6 +24,7 @@ def download():
     if mode == "audio":
         command = [
             "yt-dlp",
+            "--impersonate", "chrome",
             "-x",
             "--audio-format", "mp3",
             "--audio-quality", "0",
@@ -33,6 +34,7 @@ def download():
     else:
         command = [
             "yt-dlp",
+            "--impersonate", "chrome",
             "-S", f"res:{quality},ext:mp4:m4a",
             "--recode-video", "mp4",
             "-o", output_path,
