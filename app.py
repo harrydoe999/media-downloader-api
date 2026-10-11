@@ -36,8 +36,8 @@ def download():
             "yt-dlp",
             "--impersonate", "chrome",
             "-f", f"bestvideo[height<={quality}][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]/best[height<={quality}]",
-            "-o", output_path,
             "--no-playlist",
+            "-o", output_path,
             url
         ]
 
@@ -51,19 +51,48 @@ def download():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-    files_found = os.listdir(DOWNLOAD_FOLDER)
-    for f in files_found:
+    for f in os.listdir(DOWNLOAD_FOLDER):
         if f.startswith(file_id):
             return send_file(
                 os.path.join(DOWNLOAD_FOLDER, f),
                 as_attachment=True
             )
 
-    return jsonify({
-        "error": "File not found after download",
-        "file_id": file_id,
-        "files_in_folder": files_found
-    }), 500
+    return jsonify({"error": "File not found after download"}), 500
+
+
+@app.route("/transcode", methods=["POST"])
+def transcode():
+    file_id = str(uuid.uuid4())
+    input_path = f"{DOWNLOAD_FOLDER}/{file_id}_input.mp4"
+    output_path = f"{DOWNLOAD_FOLDER}/{file_id}_output.mp4"
+
+    # Save the incoming file
+    with open(input_path, "wb") as f:
+        f.write(request.data)
+
+    # Transcode to H.264 using ffmpeg
+    command = [
+        "ffmpeg",
+        "-i", input_path,
+        "-vcodec", "libx264",
+        "-acodec", "aac",
+        "-strict", "experimental",
+        output_path
+    ]
+
+    try:
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode != 0:
+            return jsonify({
+                "error": "Transcode failed",
+                "details": result.stderr
+            }), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return send_file(output_path, as_attachment=True)
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
