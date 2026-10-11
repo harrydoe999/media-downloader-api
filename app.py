@@ -52,11 +52,11 @@ def download():
         return jsonify({"error": str(e)}), 500
 
     for f in os.listdir(DOWNLOAD_FOLDER):
-        if f.startswith(file_id):
-            return send_file(
-                os.path.join(DOWNLOAD_FOLDER, f),
-                as_attachment=True
-            )
+    if f.startswith(file_id):
+        full_path = os.path.join(DOWNLOAD_FOLDER, f)
+        if os.path.getsize(full_path) == 0:
+            return jsonify({"error": "Downloaded file is empty"}), 500
+        return send_file(full_path, as_attachment=True)
 
     return jsonify({"error": "File not found after download"}), 500
 
