@@ -8,12 +8,33 @@ app = Flask(__name__)
 DOWNLOAD_FOLDER = "/tmp/downloads"
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
+def get_codec(file_path):
+    probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+         "-show_entries", "stream=codec_name",
+         "-of", "default=noprint_wrappers=1:nokey=1", file_path],
+        capture_output=True, text=True
+    )
+    return probe.stdout.strip()
+
+def transcode_to_h264(input_path):
+    output_path = input_path.replace(".mp4", "_h264.mp4")
+    subprocess.run([
+        "ffmpeg", "-i", input_path,
+        "-vcodec", "libx264",
+        "-acodec", "aac",
+        "-strict", "experimental",
+        output_path
+    ])
+    return output_path
+
 @app.route("/download", methods=["POST"])
 def download():
     data = request.get_json()
     url = data.get("url")
     quality = data.get("quality", "720")
     mode = data.get("mode", "video")
+    destination = data.get("destination", "files")
 
     if not url:
         return jsonify({"error": "No URL provided"}), 400
@@ -52,47 +73,21 @@ def download():
         return jsonify({"error": str(e)}), 500
 
     for f in os.listdir(DOWNLOAD_FOLDER):
-    if f.startswith(file_id):
-        full_path = os.path.join(DOWNLOAD_FOLDER, f)
-        if os.path.getsize(full_path) == 0:
-            return jsonify({"error": "Downloaded file is empty"}), 500
-        return send_file(full_path, as_attachment=True)
+        if f.startswith(file_id):
+            full_path = os.path.join(DOWNLOAD_FOLDER, f)
+
+            if os.path.getsize(full_path) == 0:
+                return jsonify({"error": "Downloaded file is empty"}), 500
+
+            # If saving to Photos, check codec and transcode if needed
+            if destination == "photos" and mode == "video":
+                codec = get_codec(full_path)
+                if codec != "h264":
+                    full_path = transcode_to_h264(full_path)
+
+            return send_file(full_path, as_attachment=True)
 
     return jsonify({"error": "File not found after download"}), 500
-
-
-@app.route("/transcode", methods=["POST"])
-def transcode():
-    file_id = str(uuid.uuid4())
-    input_path = f"{DOWNLOAD_FOLDER}/{file_id}_input.mp4"
-    output_path = f"{DOWNLOAD_FOLDER}/{file_id}_output.mp4"
-
-    # Save the incoming file
-    with open(input_path, "wb") as f:
-        f.write(request.data)
-
-    # Transcode to H.264 using ffmpeg
-    command = [
-        "ffmpeg",
-        "-i", input_path,
-        "-vcodec", "libx264",
-        "-acodec", "aac",
-        "-strict", "experimental",
-        output_path
-    ]
-
-    try:
-        result = subprocess.run(command, capture_output=True, text=True)
-        if result.returncode != 0:
-            return jsonify({
-                "error": "Transcode failed",
-                "details": result.stderr
-            }), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    return send_file(output_path, as_attachment=True)
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
