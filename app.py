@@ -72,29 +72,28 @@ def download():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+    # Debug — show what's in the folder
     all_files = os.listdir(DOWNLOAD_FOLDER)
-return jsonify({
-    "debug": "checking folder",
-    "file_id": file_id,
-    "all_files": all_files
-}), 200
-    
-    for f in os.listdir(DOWNLOAD_FOLDER):
-        if f.startswith(file_id):
-            full_path = os.path.join(DOWNLOAD_FOLDER, f)
+    matching = [f for f in all_files if f.startswith(file_id)]
 
-            if os.path.getsize(full_path) == 0:
-                return jsonify({"error": "Downloaded file is empty"}), 500
+    if not matching:
+        return jsonify({
+            "error": "File not found after download",
+            "file_id": file_id,
+            "all_files": all_files
+        }), 500
 
-            # If saving to Photos, check codec and transcode if needed
-            if destination == "photos" and mode == "video":
-                codec = get_codec(full_path)
-                if codec != "h264":
-                    full_path = transcode_to_h264(full_path)
+    full_path = os.path.join(DOWNLOAD_FOLDER, matching[0])
 
-            return send_file(full_path, as_attachment=True)
+    if os.path.getsize(full_path) == 0:
+        return jsonify({"error": "Downloaded file is empty"}), 500
 
-    return jsonify({"error": "File not found after download"}), 500
+    if destination == "photos" and mode == "video":
+        codec = get_codec(full_path)
+        if codec != "h264":
+            full_path = transcode_to_h264(full_path)
+
+    return send_file(full_path, as_attachment=True)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
