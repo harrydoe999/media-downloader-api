@@ -72,6 +72,13 @@ def download():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+    all_files = os.listdir(DOWNLOAD_FOLDER)
+return jsonify({
+    "debug": "checking folder",
+    "file_id": file_id,
+    "all_files": all_files
+}), 200
+    
     for f in os.listdir(DOWNLOAD_FOLDER):
         if f.startswith(file_id):
             full_path = os.path.join(DOWNLOAD_FOLDER, f)
