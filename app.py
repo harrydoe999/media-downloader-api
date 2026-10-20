@@ -56,7 +56,8 @@ def download():
         command = [
             "yt-dlp",
             "--impersonate", "chrome",
-            "-f", f"bestvideo[height<={quality}]+bestaudio/best[height<={quality}]/bestvideo+bestaudio",
+            "-f", f"bestvideo[height<={quality}]+bestaudio/best[height<={quality}]/best",
+            "--merge-output-format", "mp4",
             "--no-playlist",
             "-o", output_path,
             url
